@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тренажёр по математике</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <header>
+        <div id="datetime"></div>
+        <div id="counters">
+            <span>Всего: <span id="total-count">0</span></span> |
+            <span>Верно: <span id="correct-count">0</span></span> |
+            <span>Неверно: <span id="incorrect-count">0</span></span>
+        </div>
+    </header>
+
+    <main>
+        <h1>Тренажёр по сложению и вычитанию</h1>
+        <div id="examples"></div>
+        <button id="check-btn">Проверить</button>
+    </main>
+
+    <script>
+        const examplesContainer = document.getElementById('examples');
+        const checkBtn = document.getElementById('check-btn');
+        const datetime = document.getElementById('datetime');
+
+        const totalCountEl = document.getElementById('total-count');
+        const correctCountEl = document.getElementById('correct-count');
+        const incorrectCountEl = document.getElementById('incorrect-count');
+
+        let totalCount = 0;
+        let correctCount = 0;
+        let incorrectCount = 0;
+
+        function updateDateTime() {
+            const now = new Date();
+            datetime.textContent = now.toLocaleString('ru-RU');
+        }
+        setInterval(updateDateTime, 1000);
+        updateDateTime();
+
+        function randomNum(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function createExample() {
+            let a = randomNum(0, 100);
+            let b = randomNum(0, 100);
+            let op = Math.random() < 0.5 ? '+' : '-';
+
+            if (op === '-') {
+                if (a < b) [a, b] = [b, a];
+            } else {
+                while (a + b > 200) {
+                    a = randomNum(0, 100);
+                    b = randomNum(0, 100);
+                }
+            }
+
+            const example = document.createElement('div');
+            example.className = 'example';
+            example.dataset.correct = op === '+' ? (a + b) : (a - b);
+            example.dataset.previous = '[]';
+
+            const index = examplesContainer.children.length + 1;
+            example.innerHTML = `
+        <span class="number">${index}.</span>
+        <span class="expr">${a} ${op} ${b} = </span>
+        <input type="number" class="answer" />
+        <span class="result"></span>
+        <span class="previous"></span>
+    `;
+            examplesContainer.appendChild(example);
+            totalCount++;
+            updateCounters();
+        }
+
+        function generateExamples(initial = 10) {
+            examplesContainer.innerHTML = '';
+            totalCount = 0;
+            correctCount = 0;
+            incorrectCount = 0;
+
+            for (let i = 0; i < initial; i++) createExample();
+            addInputHandlers();
+            updateCounters();
+        }
+
+        function addInputHandlers() {
+            const inputs = document.querySelectorAll('.answer');
+
+            inputs.forEach((input, index) => {
+                input.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        // Если не последнее поле — переводим фокус на следующее
+                        if (index < inputs.length - 1) {
+                            inputs[index + 1].focus();
+                        }
+                        // Если последнее поле — ничего не делаем
+                    }
+                });
+            });
+
+            if (inputs.length > 0) inputs[0].focus();
+        }
+
+        function updateCounters() {
+            totalCountEl.textContent = totalCount;
+            correctCountEl.textContent = correctCount;
+            incorrectCountEl.textContent = incorrectCount;
+        }
+
+        function checkAnswers() {
+            const examples = document.querySelectorAll('.example');
+
+            correctCount = 0;
+            incorrectCount = 0;
+
+            examples.forEach(ex => {
+                const correct = +ex.dataset.correct;
+                const answerField = ex.querySelector('.answer');
+                const resultSpan = ex.querySelector('.result');
+                const prevSpan = ex.querySelector('.previous');
+
+                const userAnswer = answerField.value.trim() === '' ? NaN : +answerField.value;
+                let previousAnswers = JSON.parse(ex.dataset.previous);
+
+                resultSpan.textContent = '';
+                prevSpan.innerHTML = '';
+
+                // Если пользователь ввёл неверный ответ (не пустой и новый)
+                if (!Number.isNaN(userAnswer) && userAnswer !== correct && !previousAnswers.includes(userAnswer)) {
+                    previousAnswers.push(userAnswer);
+                    createExample(); // добавляем новый пример
+                }
+
+                ex.dataset.previous = JSON.stringify(previousAnswers);
+
+                // Отображение результата
+                if (userAnswer === correct) {
+                    if (previousAnswers.length > 0) {
+                        resultSpan.innerHTML = `<span class="correct">✔</span> <span class="incorrect">✘</span>`;
+                    } else {
+                        resultSpan.innerHTML = `<span class="correct">✔</span>`;
+                    }
+                } else if (!Number.isNaN(userAnswer)) {
+                    resultSpan.innerHTML = `<span class="incorrect">✘</span>`;
+                }
+
+                prevSpan.innerHTML = previousAnswers.map(ans => `<span class="wrong">${ans}</span>`).join(' ');
+
+                // Подсчёт всех неверных попыток
+                incorrectCount += previousAnswers.length;
+
+                // Подсчёт правильных ответов на текущей странице
+                if (userAnswer === correct) correctCount++;
+            });
+
+            // Обновляем номера всех примеров
+            document.querySelectorAll('.example').forEach((ex, idx) => {
+                ex.querySelector('.number').textContent = (idx + 1) + '.';
+            });
+
+            updateCounters();
+            addInputHandlers();
+        }
+
+        // стартовая генерация
+        generateExamples();
+        checkBtn.addEventListener('click', checkAnswers);
+    </script>
+</body>
+
+</html>
